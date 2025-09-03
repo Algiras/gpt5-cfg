@@ -1,0 +1,37 @@
+start: command
+
+command: add_cmd | remove_cmd | move_cmd | rename_cmd | set_cmd
+
+// ADD id=nodeId [label="Node Label"] [parent=parentId]
+add_cmd: "ADD"i WS "id=" ID (WS attribute)*
+
+// REMOVE id=nodeId
+remove_cmd: "REMOVE"i WS "id=" ID
+
+// MOVE id=nodeId parent=newParentId
+move_cmd: "MOVE"i WS "id=" ID WS "parent=" ID
+
+// RENAME id=nodeId label="New Label"
+rename_cmd: "RENAME"i WS "id=" ID WS "label=" STRING_VALUE
+
+// SET id=nodeId attribute=value [attribute2=value2]
+set_cmd: "SET"i WS "id=" ID (WS attribute)+
+
+// Attributes like label="value" or parent=nodeId
+attribute: ATTR_NAME "=" ATTR_VALUE
+
+ATTR_NAME: "label"i | "parent"i | "value"i | ID
+ATTR_VALUE: STRING_VALUE | ID
+
+// String values in quotes (single or double)
+STRING_VALUE: QUOTED_STRING
+QUOTED_STRING: "\"" /[^"]*/ "\"" | "'" /[^']*/ "'"
+
+// Identifiers (node IDs, etc.)
+ID: /[a-zA-Z_][a-zA-Z0-9_-]*/
+
+// Whitespace
+WS: /[ \t]+/
+
+%import common.NEWLINE
+%ignore NEWLINE

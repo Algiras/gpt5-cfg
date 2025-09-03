@@ -1,0 +1,8 @@
+.env
+node_modules
+dist
+coverage
+.idea
+.vscode
+debug.log
+.yarn
