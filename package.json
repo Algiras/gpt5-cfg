@@ -22,7 +22,7 @@
   "homepage": "https://github.com/your-username/cfg-chatgpt-interactions#readme",
   "scripts": {
     "build": "tsc && npm run copy-assets && npm run generate-lark",
-    "generate-lark": "python3 scripts/generate_lark_parser.py",
+    "generate-lark": "node scripts/generate_lark_parser.js",
     "copy-assets": "mkdir -p dist/grammar && cp src/grammar/*.lark dist/grammar/",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",

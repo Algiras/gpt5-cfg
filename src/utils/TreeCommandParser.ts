@@ -10,197 +10,190 @@ export interface TreeCommand {
 }
 
 /**
- * Parse a tree command string using our Lark grammar file directly
- * This ensures 100% consistency with ChatGPT-5 API constraints by using the SAME grammar source
+ * Parse a tree command string using the runtime Lark parser
+ * 
+ * This function uses the same Lark grammar that ChatGPT-5 API uses, ensuring 100% consistency.
+ * The process:
+ * 1. Load the Lark.js generated parser module (from dist/LarkParser.js)
+ * 2. Create a parser instance with our custom transformer
+ * 3. Parse the command string and transform it to TreeCommand format
+ * 
  * @param commandString - The command string to parse (e.g., "ADD id=node1 label='My Node'")
  * @returns Parsed command object or throws an error if parsing fails
  */
 export function parseTreeCommand(commandString: string): TreeCommand {
   try {
-    // Try to use runtime Lark parser from dist folder
-    const larkParser = tryLoadLarkParser();
-    if (larkParser) {
-      const result = larkParser.parseLarkTreeCommand(commandString.trim());
+    const larkModule = loadLarkParserModule();
+    const parser = larkModule.get_parser({ transformer: createTreeCommandTransformer() });
+    const result = parser.parse(commandString.trim());
+    
+    // The transformer should have converted this to our expected format
+    if (result && typeof result === 'object' && result.type) {
       return result as TreeCommand;
-    } else {
-      // Fallback to simple parser during development
-      return parseTreeCommandSimple(commandString.trim());
     }
+    
+    throw new Error(`Parser returned unexpected format: ${JSON.stringify(result)}`);
   } catch (error) {
     throw new Error(`Failed to parse tree command: "${commandString}". ${error}`);
   }
 }
 
 /**
- * Try to load the runtime Lark parser from dist folder
+ * Create transformer for converting Lark parse tree to TreeCommand format
+ * This transformer maps Lark grammar rules to our TreeCommand objects
  */
-function tryLoadLarkParser(): any {
-  try {
-    const path = require('path');
-    const larkParserPath = path.join(__dirname, '../LarkParser.js');
-    return require(larkParserPath);
-  } catch (error) {
-    // Parser not available (e.g., during development before build)
-    return null;
-  }
+function createTreeCommandTransformer() {
+  return {
+    // Transform the top-level start rule to extract the command
+    start: (children: any[]) => {
+      return children[0];
+    },
+    
+    // Transform the command rule to extract the specific command type
+    command: (children: any[]) => {
+      return children[0];
+    },
+    
+    // Transform command nodes
+    add_cmd: (children: any[]) => {
+      const result: TreeCommand = { type: 'ADD', id: '' };
+      extractAttributesFromChildren(children, result);
+      return result;
+    },
+    
+    remove_cmd: (children: any[]) => {
+      const result: TreeCommand = { type: 'REMOVE', id: '' };
+      extractAttributesFromChildren(children, result);
+      return result;
+    },
+    
+    move_cmd: (children: any[]) => {
+      const result: TreeCommand = { type: 'MOVE', id: '' };
+      extractAttributesFromChildren(children, result);
+      return result;
+    },
+    
+    rename_cmd: (children: any[]) => {
+      const result: TreeCommand = { type: 'RENAME', id: '' };
+      extractAttributesFromChildren(children, result);
+      return result;
+    },
+    
+    set_cmd: (children: any[]) => {
+      const result: TreeCommand = { type: 'SET', id: '' };
+      extractAttributesFromChildren(children, result);
+      return result;
+    },
+    
+    // Transform attribute nodes into key-value pairs
+    attribute: (children: any[]) => {
+      if (children.length >= 2) {
+        const nameToken = children[0];
+        const valueToken = children[1];
+        
+        let name = nameToken.value || nameToken;
+        // Normalize attribute names to lowercase
+        name = name.toLowerCase();
+        
+        const value = cleanValue(valueToken.value || valueToken);
+        
+        return { name, value };
+      }
+      return null;
+    }
+  };
 }
 
 /**
- * Simple parser that follows our Lark grammar rules
+ * Extract attributes from parse tree children
  */
-function parseTreeCommandSimple(cmd: string): TreeCommand {
-  // Extract command type
-  const commandMatch = cmd.match(/^(ADD|REMOVE|MOVE|RENAME|SET)\s+/i);
-  if (!commandMatch) {
-    throw new Error('Invalid command format');
-  }
-  
-  const commandType = commandMatch[1].toUpperCase() as TreeCommand['type'];
-  const remainder = cmd.slice(commandMatch[0].length);
-  
-  // Parse according to grammar rules for each command type
-  switch (commandType) {
-    case 'ADD':
-      return parseAddCommand(remainder, commandType);
-    case 'REMOVE':
-      return parseRemoveCommand(remainder, commandType);
-    case 'MOVE':
-      return parseMoveCommand(remainder, commandType);
-    case 'RENAME':
-      return parseRenameCommand(remainder, commandType);
-    case 'SET':
-      return parseSetCommand(remainder, commandType);
-    default:
-      throw new Error(`Unknown command type: ${commandType}`);
-  }
-}
-
-function parseAddCommand(remainder: string, type: TreeCommand['type']): TreeCommand {
-  const result: TreeCommand = { type, id: '' };
-  
-  if (!remainder.startsWith('id=')) {
-    throw new Error('ADD command must start with id=');
-  }
-  
-  const attributes = parseAttributes(remainder);
-  if (!attributes.id) {
-    throw new Error('ADD command must have id');
-  }
-  
-  return { ...result, ...attributes };
-}
-
-function parseRemoveCommand(remainder: string, type: TreeCommand['type']): TreeCommand {
-  const result: TreeCommand = { type, id: '' };
-  
-  if (!remainder.startsWith('id=')) {
-    throw new Error('REMOVE command must start with id=');
-  }
-  
-  const attributes = parseAttributes(remainder);
-  if (!attributes.id) {
-    throw new Error('REMOVE command must have id');
-  }
-  
-  // REMOVE should only have id
-  const extraAttrs = Object.keys(attributes).filter(k => k !== 'id');
-  if (extraAttrs.length > 0) {
-    throw new Error(`REMOVE command should only have id, found: ${extraAttrs.join(', ')}`);
-  }
-  
-  return { ...result, ...attributes };
-}
-
-function parseMoveCommand(remainder: string, type: TreeCommand['type']): TreeCommand {
-  const result: TreeCommand = { type, id: '' };
-  
-  if (!remainder.startsWith('id=')) {
-    throw new Error('MOVE command must start with id=');
-  }
-  
-  const attributes = parseAttributes(remainder);
-  if (!attributes.id || !attributes.parent) {
-    throw new Error('MOVE command must have both id and parent');
-  }
-  
-  return { ...result, ...attributes };
-}
-
-function parseRenameCommand(remainder: string, type: TreeCommand['type']): TreeCommand {
-  const result: TreeCommand = { type, id: '' };
-  
-  if (!remainder.startsWith('id=')) {
-    throw new Error('RENAME command must start with id=');
-  }
-  
-  const attributes = parseAttributes(remainder);
-  if (!attributes.id || !attributes.label) {
-    throw new Error('RENAME command must have both id and label');
-  }
-  
-  return { ...result, ...attributes };
-}
-
-function parseSetCommand(remainder: string, type: TreeCommand['type']): TreeCommand {
-  const result: TreeCommand = { type, id: '' };
-  
-  if (!remainder.startsWith('id=')) {
-    throw new Error('SET command must start with id=');
-  }
-  
-  const attributes = parseAttributes(remainder);
-  if (!attributes.id) {
-    throw new Error('SET command must have id');
-  }
-  
-  // SET must have at least one attribute besides id
-  const extraAttrs = Object.keys(attributes).filter(k => k !== 'id');
-  if (extraAttrs.length === 0) {
-    throw new Error('SET command must have at least one attribute to set');
-  }
-  
-  return { ...result, ...attributes };
-}
-
-function parseAttributes(str: string): { [key: string]: string } {
-  const attributes: { [key: string]: string } = {};
-  
-  // Enhanced regex that matches our Lark grammar:
-  // ATTR_NAME: "label"i | "parent"i | "value"i | ID
-  // ATTR_VALUE: STRING_VALUE | ID
-  // STRING_VALUE: QUOTED_STRING
-  const regex = /(\w+)=(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|([a-zA-Z_][a-zA-Z0-9_-]*))/g;
-  let match;
-  
-  while ((match = regex.exec(str)) !== null) {
-    const key = match[1].toLowerCase();
-    let value = match[2] || match[3] || match[4];
-    
-    // Handle escape sequences in quoted strings
-    if (match[2] || match[3]) {
-      value = value
-        .replace(/\\"/g, '"')
-        .replace(/\\'/g, "'")
-        .replace(/\\\\/g, '\\')
-        .replace(/\\n/g, '\n')
-        .replace(/\\r/g, '\r')
-        .replace(/\\t/g, '\t');
+function extractAttributesFromChildren(children: any[], result: TreeCommand) {
+  children.forEach(child => {
+    if (child && typeof child === 'object') {
+      // Handle tokens directly
+      if (child.type === 'ID') {
+        if (!result.id) {
+          result.id = child.value;
+        } else if (result.type === 'MOVE' && !result.parent) {
+          // Second ID in MOVE command is the parent
+          result.parent = child.value;
+        }
+      } else if (child.type === 'STRING_VALUE') {
+        const cleanVal = cleanValue(child.value);
+        if (result.type === 'RENAME' && !result.label) {
+          result.label = cleanVal;
+        } else if (result.type === 'SET' && !result.value) {
+          result.value = cleanVal;
+        }
+      } else if (child.name && child.value !== undefined) {
+        // This is a transformed attribute from our transformer
+        (result as any)[child.name] = child.value;
+      }
     }
-    
-    attributes[key] = value;
+  });
+}
+
+/**
+ * Clean quoted values and handle escapes
+ */
+function cleanValue(value: any): string {
+  if (typeof value === 'string' && value.length >= 2) {
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      let cleaned = value.slice(1, -1);
+      // Unescape common escape sequences
+      cleaned = cleaned.replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+      return cleaned;
+    }
+  }
+  return value;
+}
+
+/**
+ * Load the runtime Lark parser module from dist folder
+ * @returns The Lark parser module with get_parser function
+ * @throws Error if parser is not available
+ */
+function loadLarkParserModule(): any {
+  const path = require('path');
+  
+  // Try multiple paths to find the parser
+  const possiblePaths = [
+    // When running from dist/utils (after compilation)
+    path.join(__dirname, '../LarkParser.js'),
+    // When running from src/utils (during tests)
+    path.join(__dirname, '../../dist/LarkParser.js'),
+    // Absolute path from project root
+    path.join(process.cwd(), 'dist/LarkParser.js')
+  ];
+  
+  for (const larkParserPath of possiblePaths) {
+    try {
+      return require(larkParserPath);
+    } catch (error) {
+      // Continue trying other paths
+      continue;
+    }
   }
   
-  return attributes;
+  throw new Error(
+    'Lark parser not available. Please run "npm run build" to generate the runtime parser. ' +
+    `Tried paths: ${possiblePaths.join(', ')}`
+  );
 }
 
 /**
  * Get the Lark grammar content that this parser uses (same as ChatGPT-5 API)
  */
 export function getLarkGrammarContent(): string {
-  // Try to get from runtime Lark parser first
-  const larkParser = tryLoadLarkParser();
-  if (larkParser && larkParser.originalLarkGrammar) {
-    return larkParser.originalLarkGrammar;
+  try {
+    // Try to get from runtime Lark parser first
+    const larkParser = loadLarkParserModule();
+    if (larkParser && larkParser.originalLarkGrammar) {
+      return larkParser.originalLarkGrammar;
+    }
+  } catch (error) {
+    // Fallback to reading from source if runtime parser not available
   }
   
   // Fallback to reading from source
@@ -208,41 +201,4 @@ export function getLarkGrammarContent(): string {
   const path = require('path');
   const grammarPath = path.join(__dirname, '../grammar/tree-commands.lark');
   return fs.readFileSync(grammarPath, 'utf8');
-}
-
-/**
- * Validate that our parser is consistent with the Lark grammar rules
- */
-export function validateGrammarConsistency(): { isConsistent: boolean; issues: string[] } {
-  // Try to use runtime Lark parser validation first
-  const larkParser = tryLoadLarkParser();
-  if (larkParser && larkParser.validateLarkParserConsistency) {
-    return larkParser.validateLarkParserConsistency();
-  }
-  
-  // Fallback validation
-  const issues: string[] = [];
-  
-  const testCases = [
-    'ADD id=node1',
-    'ADD id=node1 label="Test"',
-    'ADD id=node1 parent=root',
-    'REMOVE id=node1',
-    'MOVE id=node1 parent=root',
-    'RENAME id=node1 label="New Name"',
-    'SET id=node1 value="test"'
-  ];
-  
-  for (const testCase of testCases) {
-    try {
-      parseTreeCommand(testCase);
-    } catch (error) {
-      issues.push(`Failed to parse valid case: "${testCase}" - ${error}`);
-    }
-  }
-  
-  return {
-    isConsistent: issues.length === 0,
-    issues
-  };
 }
