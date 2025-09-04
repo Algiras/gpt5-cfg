@@ -1,17 +1,9 @@
 {
   "name": "cfg-chatgpt-interactions",
   "version": "1.0.0",
-  "description": "A TypeScript project that uses Context Free Grammar and XML configuration for ChatGPT API interactions",
+  "description": "Natural language tree editor using OpenAI GPT-5 Context Free Grammar constraints",
   "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc && npm run copy-assets",
-    "copy-assets": "mkdir -p dist/grammar && cp src/grammar/*.lark dist/grammar/",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
-    "test": "jest",
-    "lint": "eslint src/**/*.ts",
-    "format": "prettier --write src/**/*.ts"
-  },
+  "license": "MIT",
   "keywords": [
     "chatgpt",
     "context-free-grammar",
@@ -20,19 +12,36 @@
     "ai",
     "parser"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/cfg-chatgpt-interactions.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/cfg-chatgpt-interactions/issues"
+  },
+  "homepage": "https://github.com/your-username/cfg-chatgpt-interactions#readme",
+  "scripts": {
+    "build": "tsc && npm run copy-assets && npm run generate-lark",
+    "generate-lark": "python3 scripts/generate_lark_parser.py",
+    "copy-assets": "mkdir -p dist/grammar && cp src/grammar/*.lark dist/grammar/",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts"
+  },
   "author": "",
-  "license": "MIT",
   "dependencies": {
     "blessed": "^0.1.81",
     "dotenv": "^16.3.1",
     "openai": "^4.53.0",
-    "xml2js": "^0.6.2"
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/blessed": "^0.1.23",
     "@types/jest": "^29.5.5",
     "@types/node": "^20.8.0",
-    "@types/xml2js": "^0.4.14",
+    "@types/winston": "^2.4.4",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
     "eslint": "^8.50.0",

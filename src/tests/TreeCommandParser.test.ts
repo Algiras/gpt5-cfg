@@ -1,4 +1,4 @@
-import { parseTreeCommand, parseAndValidateTreeCommand, validateTreeCommand } from '../utils/TreeCommandParser';
+import { parseTreeCommand } from '../utils/TreeCommandParser';
 
 describe('TreeCommandParser', () => {
   describe('parseTreeCommand', () => {
@@ -89,57 +89,5 @@ describe('TreeCommandParser', () => {
       expect(() => parseTreeCommand('ADD')).toThrow();
     });
   });
-
-  describe('validateTreeCommand', () => {
-    test('should validate ADD command', () => {
-      expect(() => validateTreeCommand({ type: 'ADD', id: 'node1' })).not.toThrow();
-    });
-
-    test('should validate REMOVE command', () => {
-      expect(() => validateTreeCommand({ type: 'REMOVE', id: 'node1' })).not.toThrow();
-    });
-
-    test('should validate MOVE command', () => {
-      expect(() => validateTreeCommand({ type: 'MOVE', id: 'node1', parent: 'parent1' })).not.toThrow();
-    });
-
-    test('should validate RENAME command', () => {
-      expect(() => validateTreeCommand({ type: 'RENAME', id: 'node1', label: 'New Label' })).not.toThrow();
-    });
-
-    test('should validate SET command', () => {
-      expect(() => validateTreeCommand({ type: 'SET', id: 'node1', value: 'test' })).not.toThrow();
-    });
-
-    test('should throw error for MOVE without parent', () => {
-      expect(() => validateTreeCommand({ type: 'MOVE', id: 'node1' })).toThrow('MOVE command must have a parent');
-    });
-
-    test('should throw error for RENAME without label', () => {
-      expect(() => validateTreeCommand({ type: 'RENAME', id: 'node1' })).toThrow('RENAME command must have a label');
-    });
-
-    test('should throw error for SET without attributes', () => {
-      expect(() => validateTreeCommand({ type: 'SET', id: 'node1' })).toThrow('SET command must have at least one attribute');
-    });
-
-    test('should throw error for command without id', () => {
-      expect(() => validateTreeCommand({ type: 'ADD' } as any)).toThrow('Command must have an id');
-    });
-  });
-
-  describe('parseAndValidateTreeCommand', () => {
-    test('should parse and validate valid command', () => {
-      const result = parseAndValidateTreeCommand('ADD id=node1 label="Test"');
-      expect(result).toEqual({
-        type: 'ADD',
-        id: 'node1',
-        label: 'Test'
-      });
-    });
-
-    test('should throw error for invalid command', () => {
-      expect(() => parseAndValidateTreeCommand('MOVE id=node1')).toThrow();
-    });
-  });
 });
+

@@ -1,22 +1,8 @@
-// Core types for the CFG-ChatGPT interaction system
-
-export interface CFGRule {
-  name: string;
-  productions: string[];
-}
-
-export interface CFGGrammar {
-  startSymbol: string;
-  rules: CFGRule[];
-  terminals: string[];
-  nonTerminals: string[];
-}
+// Core types for the tree editing system
 
 export interface InteractionConfig {
   name: string;
   description: string;
-  grammar?: string; // Optional path to CFG grammar file
-  grammarInline?: string; // Optional inline CFG grammar
   prompts: {
     system?: string;
     user?: string;
@@ -31,24 +17,13 @@ export interface InteractionConfig {
     required: boolean;
     pattern?: string;
   };
-  output?: OutputSpec;
 }
 
 export interface ParsedInput {
   original: string;
-  parsed: ParseNode[];
+  parsed: any[]; // Simplified since we don't use complex parsing
   isValid: boolean;
   errors: string[];
-}
-
-export interface ParseNode {
-  type: 'terminal' | 'non-terminal';
-  value: string;
-  children?: ParseNode[];
-  position: {
-    start: number;
-    end: number;
-  };
 }
 
 export interface ChatGPTResponse {
@@ -70,17 +45,4 @@ export interface InteractionResult {
   timestamp: Date;
   success: boolean;
   error?: string;
-}
-
-export interface OutputSpec {
-  format?: 'xml' | 'text' | 'json';
-  grammar?: OutputGrammarConfig;
-  xsd?: string; // Inline XSD schema text
-  xsdPath?: string; // XSD schema file path
-}
-
-export interface OutputGrammarConfig {
-  type: 'cfg';
-  grammar: string; // CFG text used to constrain the model's output
-  description?: string;
 }

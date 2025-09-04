@@ -1,6 +1,7 @@
 import { InteractionEngine } from './core/InteractionEngine';
 import { TUIApp } from './ui/TUI';
 import * as dotenv from 'dotenv';
+import { logger } from './utils/logger';
 
 // Load environment variables
 dotenv.config();
@@ -17,38 +18,36 @@ class CFGChatGPTApp {
       // Get API key
       const apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) {
-        console.error('❌ OPENAI_API_KEY environment variable is required');
-        console.log('Please set your OpenAI API key in the .env file');
+        logger.error('OPENAI_API_KEY environment variable is required');
+        logger.info('Please set your OpenAI API key in the .env file');
         process.exit(1);
       }
 
       const model = process.env.OPENAI_MODEL || 'gpt-5-nano';
 
       // Prefer XSD if provided, else fall back to built-in tree CFG
-      console.log('🔧 Initializing engine...');
-      const xsdPathEnv = process.env.XSD_PATH;
-      if (xsdPathEnv) {
-        await this.engine.initializeFromXSD(apiKey, xsdPathEnv, model);
-      } else {
-        await this.engine.initializeDefaultTree(apiKey, model);
-      }
-      console.log('✅ Engine initialized successfully!\n');
+      logger.info('Initializing engine', { model });
+      await this.engine.initializeDefaultTree(apiKey, model);
+      logger.info('Engine initialized successfully');
 
       // Launch the blessed TUI with error handling
       try {
         new TUIApp(this.engine);
       } catch (tuiError) {
-        console.error('TUI failed to start:', tuiError);
-        console.log('Falling back to simple console mode...');
+        logger.error('TUI failed to start', { 
+          error: tuiError instanceof Error ? tuiError.message : String(tuiError) 
+        });
+        logger.info('Falling back to simple console mode');
         // Simple fallback - just show current tree
-        console.log('Current tree:');
-        console.log(this.engine.getTreeXml());
-        console.log('\nTUI had issues. Try running in a different terminal or with TERM=xterm');
+        logger.info('Current tree', { tree: this.engine.getTreeXml() });
+        logger.warn('TUI had issues. Try running in a different terminal or with TERM=xterm');
         process.exit(1);
       }
 
     } catch (error) {
-      console.error('❌ Failed to start application:', error);
+      logger.error('Failed to start application', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
       process.exit(1);
     }
   }
@@ -58,4 +57,9 @@ class CFGChatGPTApp {
 
 // Start the application
 const app = new CFGChatGPTApp();
-app.start().catch(console.error);
+app.start().catch((error) => {
+  logger.error('Application startup failed', { 
+    error: error instanceof Error ? error.message : String(error) 
+  });
+  process.exit(1);
+});

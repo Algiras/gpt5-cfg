@@ -1,6 +1,6 @@
 import blessed, { Widgets } from 'blessed';
 import { InteractionEngine } from '../core/InteractionEngine';
-import { formatTreeForDisplay, getTreeStats } from '../utils/TreeFormatter';
+import { formatTreeForDisplay, getTreeStats } from '../utils/SimpleTreeOps';
 
 export class TUIApp {
   private screen: Widgets.Screen;

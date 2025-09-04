@@ -5,4 +5,9 @@ coverage
 .idea
 .vscode
 debug.log
+logs/
+
+# Keep example screenshots but ignore other images
+images/*
+!images/Screenshot*.png
 .yarn
